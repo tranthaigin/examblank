@@ -87,11 +87,16 @@ document.addEventListener("DOMContentLoaded", () => {
         const val = Number(numInput.value);
         if (!val || val < 1) { alert("Số lượng không hợp lệ!"); return; }
         if (val > 10000) { alert("Tối đa 10,000 câu!"); return; }
+
+        localStorage.removeItem('gin_quiz_save'); // <--- MỚI: Xóa dữ liệu cũ
+
         generate(val);
         startScreen.style.display = "none";
         inputPopup.classList.remove("show");
         inputPopup.classList.add("hidden");
         appLayout.style.display = "flex";
+
+        saveProgress(); // <--- MỚI: Lưu trạng thái mới
     });
 
     backBtn.addEventListener("click", () => {
@@ -151,6 +156,8 @@ document.addEventListener("DOMContentLoaded", () => {
         cb.parentElement.classList.toggle("selected", cb.checked);
         const navItem = document.getElementById(`nav-item-${idx}`);
         if (navItem) isAnswered(idx) ? navItem.classList.add("answered") : navItem.classList.remove("answered");
+
+        saveProgress(); // <--- MỚI: Gọi hàm lưu
     };
     function scrollToQuestion(idx) {
         const el = document.getElementById(`q-container-${idx}`);
@@ -284,4 +291,61 @@ document.addEventListener("DOMContentLoaded", () => {
         else quote = "Kết quả chưa tốt, hãy ôn lại kiến thức ngay!";
         quoteBox.textContent = `"${quote}"`;
     }
+    // === CODE MỚI: LƯU VÀ KHÔI PHỤC TIẾN ĐỘ ===
+    function saveProgress() {
+        let currentView = 'home';
+        if (!document.getElementById("view-empty-quiz").classList.contains("hidden")) currentView = 'empty';
+
+        let answers = {};
+        if (currentView === 'empty') {
+            document.querySelectorAll('.opt input:checked').forEach(box => {
+                let qId = box.parentElement.parentElement.id; // Lấy ID câu hỏi (vd: q1)
+                if (!answers[qId]) answers[qId] = [];
+                answers[qId].push(box.value);
+            });
+        }
+
+        localStorage.setItem('gin_quiz_save', JSON.stringify({
+            view: currentView,
+            total: totalQuestions,
+            ans: answers
+        }));
+    }
+
+    function loadProgress() {
+        const saved = localStorage.getItem('gin_quiz_save');
+        if (!saved) return;
+
+        try {
+            const data = JSON.parse(saved);
+            if (data.view === 'empty' && data.total > 0) {
+                switchView('empty');
+                totalQuestions = data.total;
+                if (document.getElementById("num")) document.getElementById("num").value = totalQuestions;
+
+                generate(totalQuestions); // Tạo lại giao diện câu hỏi
+
+                // Khôi phục các đáp án đã chọn
+                for (const [qId, values] of Object.entries(data.ans)) {
+                    let idx = qId.replace('q', ''); // Lấy số thứ tự câu
+                    values.forEach(val => {
+                        let input = document.querySelector(`#${qId} input[value="${val}"]`);
+                        if (input) {
+                            input.checked = true;
+                            // Cập nhật màu sắc giao diện
+                            input.parentElement.classList.add("selected");
+                            let navItem = document.getElementById(`nav-item-${idx}`);
+                            if (navItem) navItem.classList.add("answered");
+                        }
+                    });
+                }
+
+                startScreen.style.display = "none";
+                appLayout.style.display = "flex";
+            }
+        } catch (e) { console.log("Lỗi load save:", e); }
+    }
+
+    // Tự động chạy khi tải trang
+    loadProgress();
 });
