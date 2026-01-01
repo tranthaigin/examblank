@@ -1,182 +1,287 @@
 document.addEventListener("DOMContentLoaded", () => {
+    // === KHAI BÁO BIẾN ===
+    const viewHome = document.getElementById("view-home");
+    const viewEmptyQuiz = document.getElementById("view-empty-quiz");
+    const viewUploadQuiz = document.getElementById("view-upload-quiz");
     const startScreen = document.getElementById("start-screen");
+    const appLayout = document.getElementById("app-layout");
+
+    const navHome = document.getElementById("navHome");
+    const navLogo = document.getElementById("navLogo");
+    const menuEmptyQuiz = document.getElementById("menuEmptyQuiz");
+    const menuUploadQuiz = document.getElementById("menuUploadQuiz");
+    const homeStartBtn = document.getElementById("homeStartBtn");
+    const homeUploadBtn = document.getElementById("homeUploadBtn");
+
+    const toolStartBtn = document.getElementById("toolStartBtn");
     const inputPopup = document.getElementById("input-popup");
     const numInput = document.getElementById("numInput");
-    const startBtn = document.getElementById("startBtn");
     const submitNumBtn = document.getElementById("submitNumBtn");
     const cancelNumBtn = document.getElementById("cancelNumBtn");
     const questionsBox = document.getElementById("questions");
     const exportBtn = document.getElementById("exportBtn");
-    const manualCreateBtn = document.getElementById("manualCreateBtn");
 
-    let backToStartBtn = document.getElementById("backBtn");
-    if (!backToStartBtn) {
-        backToStartBtn = document.createElement("button");
-        backToStartBtn.id = "backBtn";
-        backToStartBtn.textContent = "Quay lại màn bắt đầu";
-        backToStartBtn.className = "back-btn-dyn";
-        backToStartBtn.style.display = "none";
-        const main = document.getElementById("main");
-        if (main) main.prepend(backToStartBtn);
-    }
-
-    function safeHide(el) { if (el) el.style.display = "none"; }
-    function safeShowInline(el) { if (el) el.style.display = "inline-block"; }
-
-    safeHide(exportBtn);
-    safeHide(manualCreateBtn);
     const nativeNum = document.getElementById("num");
-    if (nativeNum) nativeNum.style.display = "none";
-    safeHide(backToStartBtn);
+    const manualCreateBtn = document.getElementById("manualCreateBtn");
+    const navGrid = document.getElementById("nav-grid");
+    const prevPageBtn = document.getElementById("prevPageBtn");
+    const nextPageBtn = document.getElementById("nextPageBtn");
+    const pageInfo = document.getElementById("pageInfo");
+    const sidebarSearch = document.getElementById("sidebarSearch");
+    const btnSearch = document.getElementById("btnSearch");
 
-    if (inputPopup) inputPopup.classList.add("hidden");
+    const loginBtn = document.getElementById("loginBtn");
+    const loginPopup = document.getElementById("login-popup");
+    const closeLogin = document.querySelector(".close-login");
 
-    if (startBtn) {
-        startBtn.addEventListener("click", () => {
-            if (inputPopup) {
-                inputPopup.classList.remove("hidden");
-                inputPopup.setAttribute("aria-hidden", "false");
-            }
-            setTimeout(() => {
-                if (startScreen) startScreen.style.display = "none";
-            }, 60);
-            setTimeout(() => { if (numInput) numInput.focus(); }, 120);
+    let backBtn = document.createElement("button");
+    backBtn.textContent = "Quay lại nhập số";
+    backBtn.className = "back-btn-dyn";
+    const place = document.getElementById("backBtnPlace");
+    if (place) place.appendChild(backBtn);
+
+    let totalQuestions = 50;
+    let currentPage = 1;
+    const itemsPerPage = 50;
+
+    // === CHUYỂN VIEW ===
+    function switchView(viewName) {
+        viewHome.classList.add("hidden");
+        viewEmptyQuiz.classList.add("hidden");
+        viewUploadQuiz.classList.add("hidden");
+        navHome.classList.remove("active");
+
+        if (viewName === 'home') {
+            viewHome.classList.remove("hidden");
+            navHome.classList.add("active");
+        } else if (viewName === 'empty') {
+            viewEmptyQuiz.classList.remove("hidden");
+            // Khi vào tool, hiện màn hình start
+            startScreen.style.display = "flex";
+            appLayout.style.display = "none";
+        } else if (viewName === 'upload') {
+            viewUploadQuiz.classList.remove("hidden");
+        }
+    }
+
+    navLogo.addEventListener("click", () => switchView('home'));
+    navHome.addEventListener("click", (e) => { e.preventDefault(); switchView('home'); });
+    menuEmptyQuiz.addEventListener("click", (e) => { e.preventDefault(); switchView('empty'); });
+    menuUploadQuiz.addEventListener("click", (e) => { e.preventDefault(); switchView('upload'); });
+    homeStartBtn.addEventListener("click", () => switchView('empty'));
+    homeUploadBtn.addEventListener("click", () => switchView('upload'));
+
+    // === LOGIC TOOL ===
+    toolStartBtn.addEventListener("click", () => {
+        inputPopup.classList.remove("hidden");
+        inputPopup.classList.add("show");
+        setTimeout(() => numInput.focus(), 100);
+    });
+
+    cancelNumBtn.addEventListener("click", () => {
+        inputPopup.classList.remove("show");
+        inputPopup.classList.add("hidden");
+    });
+
+    submitNumBtn.addEventListener("click", () => {
+        const val = Number(numInput.value);
+        if (!val || val < 1) { alert("Số lượng không hợp lệ!"); return; }
+        if (val > 10000) { alert("Tối đa 10,000 câu!"); return; }
+        generate(val);
+        startScreen.style.display = "none";
+        inputPopup.classList.remove("show");
+        inputPopup.classList.add("hidden");
+        appLayout.style.display = "flex";
+    });
+
+    backBtn.addEventListener("click", () => {
+        if (confirm("Dữ liệu sẽ mất. Quay lại?")) {
+            appLayout.style.display = "none";
+            startScreen.style.display = "flex";
+            questionsBox.innerHTML = "";
+        }
+    });
+
+    function generate(num) {
+        totalQuestions = num;
+        if (nativeNum) nativeNum.value = num;
+        questionsBox.innerHTML = "";
+        window.scrollTo({ top: 0, behavior: "smooth" });
+
+        for (let i = 1; i <= totalQuestions; i++) {
+            let qDiv = document.createElement("div");
+            qDiv.className = "question";
+            qDiv.id = `q-container-${i}`;
+            qDiv.innerHTML = `<b>Câu ${i}:</b> <div class="opts" id="q${i}"></div>`;
+            questionsBox.appendChild(qDiv);
+
+            ["A", "B", "C", "D", "E", "F"].forEach(letter => {
+                let opt = document.createElement("label");
+                opt.className = "opt";
+                opt.innerHTML = `<input type='checkbox' value='${letter}' onchange='window.handleAnswerCheck(${i}, this)'> ${letter}`;
+                document.getElementById("q" + i).appendChild(opt);
+            });
+        }
+        currentPage = 1;
+        renderSidebar();
+    }
+
+    window.renderSidebar = function () {
+        if (!navGrid) return;
+        navGrid.innerHTML = "";
+        const start = (currentPage - 1) * itemsPerPage + 1;
+        const end = Math.min(start + itemsPerPage - 1, totalQuestions);
+        if (pageInfo) pageInfo.textContent = `${start} - ${end} / ${totalQuestions}`;
+
+        for (let i = start; i <= end; i++) {
+            let item = document.createElement("div");
+            item.className = "nav-item";
+            item.textContent = i;
+            item.id = `nav-item-${i}`;
+            if (isAnswered(i)) item.classList.add("answered");
+            item.addEventListener("click", () => scrollToQuestion(i));
+            navGrid.appendChild(item);
+        }
+        if (prevPageBtn) prevPageBtn.disabled = currentPage === 1;
+        if (nextPageBtn) nextPageBtn.disabled = end >= totalQuestions;
+    };
+
+    function isAnswered(idx) { return document.querySelectorAll(`#q${idx} input:checked`).length > 0; }
+    window.handleAnswerCheck = function (idx, cb) {
+        cb.parentElement.classList.toggle("selected", cb.checked);
+        const navItem = document.getElementById(`nav-item-${idx}`);
+        if (navItem) isAnswered(idx) ? navItem.classList.add("answered") : navItem.classList.remove("answered");
+    };
+    function scrollToQuestion(idx) {
+        const el = document.getElementById(`q-container-${idx}`);
+        if (el) {
+            const y = el.getBoundingClientRect().top + window.scrollY - 100;
+            window.scrollTo({ top: y, behavior: "smooth" });
+            document.querySelectorAll(".question").forEach(q => q.classList.remove("active-scroll"));
+            el.classList.add("active-scroll");
+        }
+    }
+
+    manualCreateBtn.addEventListener("click", () => {
+        const val = Number(nativeNum.value);
+        if (val && val > 0 && val <= 10000) generate(val);
+    });
+    prevPageBtn.addEventListener("click", () => { if (currentPage > 1) { currentPage--; renderSidebar(); } });
+    nextPageBtn.addEventListener("click", () => {
+        const maxPage = Math.ceil(totalQuestions / itemsPerPage);
+        if (currentPage < maxPage) { currentPage++; renderSidebar(); }
+    });
+    btnSearch.addEventListener("click", handleSearch);
+    sidebarSearch.addEventListener("keypress", (e) => { if (e.key === "Enter") handleSearch(); });
+    function handleSearch() {
+        const val = Number(sidebarSearch.value);
+        if (!val || val < 1 || val > totalQuestions) { alert("Câu không tồn tại!"); return; }
+        const targetPage = Math.ceil(val / itemsPerPage);
+        if (targetPage !== currentPage) { currentPage = targetPage; renderSidebar(); }
+        setTimeout(() => scrollToQuestion(val), 100);
+    }
+
+    // Login
+    loginBtn.addEventListener("click", () => loginPopup.classList.add("show"));
+    closeLogin.addEventListener("click", () => loginPopup.classList.remove("show"));
+    loginPopup.addEventListener("click", (e) => { if (e.target === loginPopup) loginPopup.classList.remove("show"); });
+
+    // Grading
+    exportBtn.addEventListener("click", () => { showGradingPopup(); });
+
+    function showGradingPopup() {
+        const bg = document.createElement("div");
+        bg.className = "popup-bg";
+        let htmlContent = `
+            <div class="popup-box">
+                <div class="score-header">
+                    <div>
+                        <div style="font-size:14px; color:#666;">KẾT QUẢ</div>
+                        <div style="display:flex; align-items:center;">
+                            <span id="scoreDisplay" class="score-big">0/100</span>
+                            <span id="passStatus" class="score-status status-fail">NOT PASS</span>
+                        </div>
+                        <div id="quoteDisplay" style="margin-top:8px; font-style:italic; color:#555;">...</div>
+                        <div style="margin-top:5px; font-size:14px;">
+                            Đúng: <b id="cntTrue" style="color:#198754">0</b> | 
+                            Sai: <b id="cntFalse" style="color:#dc3545">0</b>
+                        </div>
+                    </div>
+                    <div style="text-align:right;">
+                        <button id="filterWrongBtn" style="padding:8px 15px; background:white; border:2px solid #dc3545; color:#dc3545; border-radius:6px; cursor:pointer; font-weight:bold;">Chỉ hiện câu SAI</button>
+                        <button class="close-popup-btn" style="background:#333; color:white; border:none; padding:8px 15px; border-radius:6px; cursor:pointer; margin-left:10px;" onclick="this.closest('.popup-bg').remove()">Đóng</button>
+                    </div>
+                </div>
+                <div class="answer-list" id="answerList"></div>
+            </div>`;
+        bg.innerHTML = htmlContent;
+        document.body.appendChild(bg);
+        const listDiv = document.getElementById("answerList");
+        let wrongCount = 0;
+        for (let i = 1; i <= totalQuestions; i++) {
+            let arr = [...document.querySelectorAll(`#q${i} input:checked`)].map(x => x.value);
+            let userAns = arr.join(', ');
+            let isUnanswered = arr.length === 0;
+            let rowClass = "";
+            let lockedAttr = "";
+            if (isUnanswered) { rowClass = "wrong locked"; lockedAttr = "disabled"; wrongCount++; }
+            let rowHtml = `
+                <div class="answer-row ${rowClass}" id="row-${i}">
+                    <span style="font-size:18px; font-weight:500;">${i}. ${userAns || 'Chưa làm'}</span>
+                    <div class="answer-actions">
+                        <button class="btn-grade btn-true" onclick="gradeItem(${i}, true)" ${lockedAttr}>Đúng</button>
+                        <button class="btn-grade btn-false" onclick="gradeItem(${i}, false)" ${lockedAttr}>Sai</button>
+                    </div>
+                </div>`;
+            listDiv.insertAdjacentHTML('beforeend', rowHtml);
+        }
+        updateTotalScore();
+        document.getElementById("filterWrongBtn").addEventListener("click", function () {
+            this.classList.toggle("active");
+            const isFiltering = this.classList.contains("active");
+            this.style.background = isFiltering ? "#dc3545" : "white";
+            this.style.color = isFiltering ? "white" : "#dc3545";
+            const rows = document.querySelectorAll(".answer-row");
+            rows.forEach(row => {
+                if (isFiltering) {
+                    if (row.classList.contains("wrong")) row.classList.remove("hidden");
+                    else row.classList.add("hidden");
+                } else {
+                    row.classList.remove("hidden");
+                }
+            });
+            this.textContent = isFiltering ? "Hiện TẤT CẢ" : "Chỉ hiện câu SAI";
         });
     }
 
-    if (cancelNumBtn) {
-        cancelNumBtn.addEventListener("click", () => {
-            if (inputPopup) {
-                inputPopup.classList.add("hidden");
-                inputPopup.setAttribute("aria-hidden", "true");
-            }
-            if (startScreen) startScreen.style.display = "flex";
-        });
-    }
+    window.gradeItem = function (id, isCorrect) {
+        const row = document.getElementById(`row-${id}`);
+        if (row.classList.contains("locked")) return;
+        row.classList.remove("correct", "wrong");
+        if (isCorrect) row.classList.add("correct");
+        else row.classList.add("wrong");
+        updateTotalScore();
+    };
 
-    if (submitNumBtn) {
-        submitNumBtn.addEventListener("click", () => {
-            const val = Number(numInput.value);
-            if (!val || val < 1) {
-                alert("Vui lòng nhập số hợp lệ (>=1)");
-                if (numInput) numInput.focus();
-                return;
-            }
-            if (nativeNum) nativeNum.value = val;
-
-            // ẩn popup + start screen
-            if (inputPopup) {
-                inputPopup.classList.add("hidden");
-                inputPopup.setAttribute("aria-hidden", "true");
-            }
-            if (startScreen) startScreen.style.display = "none";
-
-            safeShowInline(exportBtn);
-            safeShowInline(manualCreateBtn);
-            if (nativeNum) nativeNum.style.display = "inline-block";
-            if (backToStartBtn) backToStartBtn.style.display = "inline-block";
-
-            generate();
-
-            window.scrollTo({ top: 0, behavior: "smooth" });
-        });
-    }
-
-    if (manualCreateBtn) {
-        manualCreateBtn.addEventListener("click", () => generate());
-    }
-
-    if (backToStartBtn) {
-        backToStartBtn.addEventListener("click", () => {
-            if (questionsBox) questionsBox.innerHTML = "";
-            if (exportBtn) exportBtn.style.display = "none";
-            if (manualCreateBtn) manualCreateBtn.style.display = "none";
-            if (nativeNum) nativeNum.style.display = "none";
-            backToStartBtn.style.display = "none";
-
-            if (numInput) numInput.value = "";
-            if (startScreen) startScreen.style.display = "flex";
-        });
-    }
-
-    if (exportBtn) {
-        exportBtn.addEventListener("click", exportAnswers);
+    function updateTotalScore() {
+        const rows = document.querySelectorAll(".answer-row");
+        let correct = 0;
+        let wrong = 0;
+        rows.forEach(r => { if (r.classList.contains("correct")) correct++; if (r.classList.contains("wrong")) wrong++; });
+        document.getElementById("cntTrue").textContent = correct;
+        document.getElementById("cntFalse").textContent = wrong;
+        let score = (totalQuestions > 0) ? (correct / totalQuestions) * 100 : 0;
+        let finalScore = Math.round(score * 10) / 10;
+        document.getElementById("scoreDisplay").textContent = `${finalScore}/100`;
+        const statusBadge = document.getElementById("passStatus");
+        const quoteBox = document.getElementById("quoteDisplay");
+        if (finalScore >= 50) { statusBadge.textContent = "PASS"; statusBadge.className = "score-status status-pass"; document.getElementById("scoreDisplay").style.color = "#155724"; }
+        else { statusBadge.textContent = "NOT PASS"; statusBadge.className = "score-status status-fail"; document.getElementById("scoreDisplay").style.color = "#721c24"; }
+        let quote = "";
+        if (finalScore === 100) quote = "Xuất sắc! Bạn là thiên tài!";
+        else if (finalScore >= 80) quote = "Tuyệt vời! Giữ vững phong độ nhé!";
+        else if (finalScore >= 50) quote = "Khá tốt, nhưng vẫn cần cẩn thận hơn.";
+        else quote = "Kết quả chưa tốt, hãy ôn lại kiến thức ngay!";
+        quoteBox.textContent = `"${quote}"`;
     }
 });
-
-function generate() {
-    let total = Number(document.getElementById("num").value);
-    let box = document.getElementById("questions");
-    if (!box) return;
-    box.innerHTML = "";
-
-    window.scrollTo({ top: 0, behavior: "smooth" });
-
-    for (let i = 1; i <= total; i++) {
-        let qDiv = document.createElement("div");
-        qDiv.className = "question";
-
-        qDiv.innerHTML = `<b>Câu ${i}:</b> <div class="opts" id="q${i}"></div>`;
-        box.appendChild(qDiv);
-
-        ["A", "B", "C", "D", "E", "F"].forEach(letter => {
-            let opt = document.createElement("label");
-            opt.className = "opt";
-            opt.innerHTML = `<input type='checkbox' value='${letter}' onchange='toggleSelect(this)'> ${letter}`;
-            document.getElementById("q" + i).appendChild(opt);
-        });
-    }
-}
-
-function toggleSelect(cb) {
-    if (!cb || !cb.parentElement) return;
-    cb.parentElement.classList.toggle("selected", cb.checked);
-}
-
-function exportAnswers() {
-    let total = Number(document.getElementById("num").value);
-    let text = "";
-
-    for (let i = 1; i <= total; i++) {
-        let arr = [...document.querySelectorAll(`#q${i} input:checked`)].map(x => x.value);
-        text += `${i}. ${arr.join(',') || '-'}\n`;
-    }
-
-    showPopup(text);
-}
-
-function showPopup(content) {
-    const bg = document.createElement("div");
-    bg.className = "popup-bg";
-    bg.addEventListener("click", () => bg.remove());
-
-    const box = document.createElement("div");
-    box.className = "popup-box";
-
-    box.addEventListener("click", e => e.stopPropagation());
-
-    box.innerHTML = content.split('\n')
-        .map((line, i) => `
-        <div class="answer-line" id="line-${i + 1}" style="padding:6px 0;border-bottom:1px solid #d0d7ff; display:flex; justify-content:space-between; align-items:center;">
-            <span>${line}</span>
-            <div>
-                <button class="answer-btn" onclick="markAnswer('line-${i + 1}', true)">True</button>
-                <button class="answer-btn" onclick="markAnswer('line-${i + 1}', false)">False</button>
-            </div>
-        </div>
-    `).join('');
-
-    bg.appendChild(box);
-    document.body.appendChild(bg);
-}
-function markAnswer(lineId, isCorrect) {
-    const line = document.getElementById(lineId);
-
-    line.classList.remove("answer-correct", "answer-wrong");
-
-    if (isCorrect) {
-        line.classList.add("answer-correct");
-    } else {
-        line.classList.add("answer-wrong");
-    }
-}

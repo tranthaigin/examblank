@@ -1,51 +1,167 @@
 <!DOCTYPE html>
 <html lang="vi">
+
 <head>
-<meta charset="UTF-8">
-<title>Bài Trắc Nghiệm -  Trần Thái</title>
-<link rel="stylesheet" href="style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gin TN Pro - Nền tảng Trắc nghiệm</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
+
 <body>
 
-<div id="start-screen">
-    <div class="start-box">
-        <h1>Bài Trắc Nghiệm</h1>
-        <p>Nhấn Bắt đầu để nhập số câu và vào bài</p>
-        <button id="startBtn">Bắt đầu</button>
+    <div id="background">
+        <div class="blob blob1"></div>
+        <div class="blob blob2"></div>
+        <div class="blob blob3"></div>
+        <div class="blob blob4"></div>
     </div>
-</div>
 
-<div id="input-popup" class="hidden" aria-hidden="true">
-    <div class="input-box">
-        <h2>Nhập số lượng câu hỏi</h2>
-        <input id="numInput" type="number" min="1" placeholder="VD: 50" />
-        <div style="display:flex;gap:12px;justify-content:center;margin-top:18px;">
-            <button id="submitNumBtn">Xác nhận</button>
-            <button id="cancelNumBtn">Hủy</button>
+    <nav id="navbar">
+        <div class="logo" id="navLogo">
+            <i class="fa-solid fa-layer-group"></i> Gin TN Pro
+        </div>
+        <ul class="nav-links">
+            <li><a href="#" id="navHome" class="active">Trang chủ</a></li>
+            <li class="dropdown">
+                <a href="#">Làm bài <i class="fa-solid fa-chevron-down"></i></a>
+                <div class="dropdown-content">
+                    <div class="dropdown-box">
+                        <a href="#" id="menuEmptyQuiz"><i class="fa-regular fa-file"></i> Phiếu trống</a>
+                        <a href="#" id="menuUploadQuiz"><i class="fa-solid fa-cloud-arrow-up"></i> Up đề bài</a>
+                    </div>
+                </div>
+            </li>
+            <li><a href="#">Thư viện</a></li>
+            <li><a href="#">Liên hệ</a></li>
+        </ul>
+        <div class="auth-btn">
+            <button id="loginBtn">Đăng nhập</button>
+        </div>
+    </nav>
+
+    <div id="view-home" class="view-section">
+        <div class="hero-container">
+            <div class="hero-content">
+                <span class="badge">✨ Phiên bản 2.0</span>
+                <h1>Giải pháp Trắc nghiệm <br> <span class="text-gradient">Thông Minh & Tốc Độ</span></h1>
+                <p>Tạo phiếu trả lời, chấm điểm tự động và số hóa đề thi ngay lập tức.</p>
+                <div class="hero-btns">
+                    <button id="homeStartBtn" class="primary-btn">Tạo phiếu ngay <i
+                            class="fa-solid fa-arrow-right"></i></button>
+                    <button id="homeUploadBtn" class="secondary-btn">Tải đề lên</button>
+                </div>
+            </div>
+
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="icon-box"><i class="fa-solid fa-bolt"></i></div>
+                    <h3>Tốc độ</h3>
+                    <p>Tạo 1000 câu hỏi chỉ trong tích tắc.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="icon-box"><i class="fa-solid fa-check-double"></i></div>
+                    <h3>Chính xác</h3>
+                    <p>Chấm điểm tự động thang 100 chuẩn xác.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="icon-box"><i class="fa-solid fa-file-word"></i></div>
+                    <h3>Đa nền tảng</h3>
+                    <p>Hỗ trợ Word, PDF, Excel tiện lợi.</p>
+                </div>
+            </div>
         </div>
     </div>
-</div>
 
-<div id="background" aria-hidden="true">
-    <div class="blob blob1"></div>
-    <div class="blob blob2"></div>
-    <div class="blob blob3"></div>
-    <div class="blob blob4"></div>
-</div>
+    <div id="view-empty-quiz" class="view-section hidden">
+        <div id="start-screen">
+            <div class="start-box">
+                <h1>Bài Trắc Nghiệm</h1>
+                <p>Nhập số lượng câu hỏi để tạo phiếu trả lời</p>
+                <button id="toolStartBtn">Bắt đầu nhập số</button>
+            </div>
+        </div>
 
-<div id="main">
+        <div id="input-popup" class="hidden">
+            <div class="input-box">
+                <h2>Thiết lập phiếu</h2>
+                <p style="color:#666; font-size:13px; margin-bottom:10px;">(Tối đa 10,000 câu)</p>
+                <input id="numInput" type="number" min="1" max="10000" placeholder="VD: 50" />
+                <div class="popup-btns">
+                    <button id="submitNumBtn">Xác nhận</button>
+                    <button id="cancelNumBtn">Hủy</button>
+                </div>
+            </div>
+        </div>
 
-    <div id="top-bar">
-        <input id="num" type="number" min="1" value="50">
-        <button id="manualCreateBtn">Tạo số câu</button>
+        <div class="layout-container" id="app-layout" style="display:none;">
+            <div class="sidebar">
+                <div class="sidebar-header">
+                    <h3>Tìm Câu Hỏi</h3>
+                    <div class="search-box">
+                        <input type="number" id="sidebarSearch" placeholder="Đến câu (VD: 26)">
+                        <button id="btnSearch"><i class="fa-solid fa-arrow-right"></i></button>
+                    </div>
+                </div>
+                <div id="nav-grid" class="nav-grid"></div>
+                <div class="pagination-controls">
+                    <button id="prevPageBtn"><i class="fa-solid fa-chevron-left"></i></button>
+                    <span id="pageInfo">1-50</span>
+                    <button id="nextPageBtn"><i class="fa-solid fa-chevron-right"></i></button>
+                </div>
+            </div>
+
+            <div id="main">
+                <div id="top-bar">
+                    <div id="backBtnPlace"></div>
+                    <div class="right-controls">
+                        <input id="num" type="number" min="1" value="50">
+                        <button id="manualCreateBtn">Tạo số câu</button>
+                    </div>
+                </div>
+                <div id="questions"></div>
+                <button id="exportBtn">Chấm điểm & Tổng kết</button>
+            </div>
+        </div>
     </div>
 
-    <div id="questions"></div>
+    <div id="view-upload-quiz" class="view-section hidden">
+        <div class="upload-container">
+            <h1>Tải lên đề thi</h1>
+            <p>Hệ thống AI sẽ tự động tách câu hỏi từ file của bạn</p>
+            <div class="drop-zone">
+                <i class="fa-solid fa-cloud-arrow-up icon-upload"
+                    style="font-size:50px;color:#ccc;margin-bottom:15px;"></i>
+                <h3>Kéo thả file Word/PDF vào đây</h3>
+                <p>Hoặc nhấn để chọn file từ máy tính</p>
+                <input type="file" hidden id="fileInput">
+                <button class="browse-btn">Chọn file</button>
+            </div>
+            <div class="upload-actions">
+                <button id="processUploadBtn" class="primary-btn">Xử lý ngay</button>
+            </div>
+        </div>
+    </div>
 
-    <button id="exportBtn">Xuất đáp án</button>
+    <div id="login-popup" class="hidden">
+        <div class="login-box">
+            <span class="close-login">&times;</span>
+            <h2>Chào mừng trở lại!</h2>
+            <div class="form-group">
+                <label>Email</label>
+                <input type="text" placeholder="name@example.com">
+            </div>
+            <div class="form-group">
+                <label>Mật khẩu</label>
+                <input type="password" placeholder="••••••••">
+            </div>
+            <button class="login-submit-btn">Đăng nhập</button>
+            <p class="switch-auth">Chưa có tài khoản? <a>Đăng ký Gin TN</a></p>
+        </div>
+    </div>
 
-</div>
-
-<script src="script.js"></script>
+    <script src="script.js"></script>
 </body>
+
 </html>
