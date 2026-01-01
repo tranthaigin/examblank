@@ -1,11 +1,12 @@
 document.addEventListener("DOMContentLoaded", () => {
-    // === KHAI BÁO BIẾN ===
+    // === 1. KHAI BÁO BIẾN ===
     const viewHome = document.getElementById("view-home");
     const viewEmptyQuiz = document.getElementById("view-empty-quiz");
     const viewUploadQuiz = document.getElementById("view-upload-quiz");
     const startScreen = document.getElementById("start-screen");
     const appLayout = document.getElementById("app-layout");
 
+    // Menu & Nút điều hướng
     const navHome = document.getElementById("navHome");
     const navLogo = document.getElementById("navLogo");
     const menuEmptyQuiz = document.getElementById("menuEmptyQuiz");
@@ -13,6 +14,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const homeStartBtn = document.getElementById("homeStartBtn");
     const homeUploadBtn = document.getElementById("homeUploadBtn");
 
+    // Tool làm bài
     const toolStartBtn = document.getElementById("toolStartBtn");
     const inputPopup = document.getElementById("input-popup");
     const numInput = document.getElementById("numInput");
@@ -21,6 +23,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const questionsBox = document.getElementById("questions");
     const exportBtn = document.getElementById("exportBtn");
 
+    // Các biến Logic
     const nativeNum = document.getElementById("num");
     const manualCreateBtn = document.getElementById("manualCreateBtn");
     const navGrid = document.getElementById("nav-grid");
@@ -30,10 +33,12 @@ document.addEventListener("DOMContentLoaded", () => {
     const sidebarSearch = document.getElementById("sidebarSearch");
     const btnSearch = document.getElementById("btnSearch");
 
+    // Login
     const loginBtn = document.getElementById("loginBtn");
     const loginPopup = document.getElementById("login-popup");
     const closeLogin = document.querySelector(".close-login");
 
+    // Nút Quay lại
     let backBtn = document.createElement("button");
     backBtn.textContent = "Quay lại nhập số";
     backBtn.className = "back-btn-dyn";
@@ -44,8 +49,89 @@ document.addEventListener("DOMContentLoaded", () => {
     let currentPage = 1;
     const itemsPerPage = 50;
 
-    // === CHUYỂN VIEW ===
-    function switchView(viewName) {
+    // === 2. HÀM LƯU & KHÔI PHỤC (QUAN TRỌNG) ===
+    function saveProgress() {
+        let currentView = 'home';
+        // Xác định đang ở trang nào
+        if (!viewEmptyQuiz.classList.contains("hidden")) currentView = 'empty';
+        if (!viewUploadQuiz.classList.contains("hidden")) currentView = 'upload';
+
+        // Xác định xem có đang làm bài thi không (hay chỉ đang ở màn hình nhập số)
+        // Kiểm tra xem app-layout có đang hiện (flex) không
+        const isQuizRunning = (appLayout.style.display === 'flex');
+
+        let answers = {};
+        // Chỉ lưu đáp án nếu đang làm bài
+        if (currentView === 'empty' && isQuizRunning) {
+            document.querySelectorAll('.opt input:checked').forEach(box => {
+                let qId = box.parentElement.parentElement.id; // vd: q-container-1
+                // Sửa lại cách lấy ID cho chuẩn xác hơn
+                // box nằm trong div class="opts" id="q1"
+                let parentId = box.parentElement.parentElement.id; // id="q1"
+                if (!answers[parentId]) answers[parentId] = [];
+                answers[parentId].push(box.value);
+            });
+        }
+
+        const data = {
+            view: currentView,
+            quizRunning: isQuizRunning,
+            total: totalQuestions,
+            ans: answers
+        };
+
+        // Dùng sessionStorage: F5 còn, Đóng tab mất
+        sessionStorage.setItem('gin_quiz_session', JSON.stringify(data));
+    }
+
+    function loadProgress() {
+        const saved = sessionStorage.getItem('gin_quiz_session');
+        if (!saved) return;
+
+        try {
+            const data = JSON.parse(saved);
+
+            // 1. Khôi phục View (Trang đang đứng)
+            if (data.view === 'upload') {
+                switchView('upload', false); // false = không lưu đè khi đang load
+            } else if (data.view === 'empty') {
+                switchView('empty', false);
+
+                // 2. Nếu đang làm bài dở -> Khôi phục câu hỏi & đáp án
+                if (data.quizRunning && data.total > 0) {
+                    totalQuestions = data.total;
+                    if (nativeNum) nativeNum.value = totalQuestions;
+
+                    generate(totalQuestions); // Tạo lại giao diện
+
+                    // Tích lại đáp án cũ
+                    for (const [qId, values] of Object.entries(data.ans)) {
+                        let idx = qId.replace('q', ''); // Lấy số câu
+                        values.forEach(val => {
+                            // Selector tìm input: trong id="q1", tìm value="A"
+                            let input = document.querySelector(`#${qId} input[value="${val}"]`);
+                            if (input) {
+                                input.checked = true;
+                                input.parentElement.classList.add("selected");
+                                // Tô màu sidebar
+                                let navItem = document.getElementById(`nav-item-${idx}`);
+                                if (navItem) navItem.classList.add("answered");
+                            }
+                        });
+                    }
+
+                    // Ẩn màn hình nhập số, hiện bài thi
+                    startScreen.style.display = "none";
+                    appLayout.style.display = "flex";
+                }
+            }
+        } catch (e) {
+            console.error("Lỗi khôi phục session:", e);
+        }
+    }
+
+    // === 3. CHUYỂN VIEW ===
+    function switchView(viewName, shouldSave = true) {
         viewHome.classList.add("hidden");
         viewEmptyQuiz.classList.add("hidden");
         viewUploadQuiz.classList.add("hidden");
@@ -56,22 +142,39 @@ document.addEventListener("DOMContentLoaded", () => {
             navHome.classList.add("active");
         } else if (viewName === 'empty') {
             viewEmptyQuiz.classList.remove("hidden");
-            // Khi vào tool, hiện màn hình start
-            startScreen.style.display = "flex";
-            appLayout.style.display = "none";
+            // Mặc định về màn hình start nếu chưa load bài
+            if (appLayout.style.display !== 'flex') {
+                startScreen.style.display = "flex";
+            }
         } else if (viewName === 'upload') {
             viewUploadQuiz.classList.remove("hidden");
         }
+
+        // Lưu trạng thái ngay khi chuyển trang
+        if (shouldSave) saveProgress();
     }
 
+    // Sự kiện chuyển trang
     navLogo.addEventListener("click", () => switchView('home'));
     navHome.addEventListener("click", (e) => { e.preventDefault(); switchView('home'); });
-    menuEmptyQuiz.addEventListener("click", (e) => { e.preventDefault(); switchView('empty'); });
+
+    menuEmptyQuiz.addEventListener("click", (e) => {
+        e.preventDefault();
+        // Reset trạng thái quiz khi bấm menu mới
+        appLayout.style.display = 'none';
+        startScreen.style.display = 'flex';
+        switchView('empty');
+    });
+
     menuUploadQuiz.addEventListener("click", (e) => { e.preventDefault(); switchView('upload'); });
-    homeStartBtn.addEventListener("click", () => switchView('empty'));
+    homeStartBtn.addEventListener("click", () => {
+        appLayout.style.display = 'none';
+        startScreen.style.display = 'flex';
+        switchView('empty');
+    });
     homeUploadBtn.addEventListener("click", () => switchView('upload'));
 
-    // === LOGIC TOOL ===
+    // === 4. LOGIC TOOL ===
     toolStartBtn.addEventListener("click", () => {
         inputPopup.classList.remove("hidden");
         inputPopup.classList.add("show");
@@ -88,7 +191,8 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!val || val < 1) { alert("Số lượng không hợp lệ!"); return; }
         if (val > 10000) { alert("Tối đa 10,000 câu!"); return; }
 
-        localStorage.removeItem('gin_quiz_save'); // <--- MỚI: Xóa dữ liệu cũ
+        // Tạo mới -> Xóa dữ liệu cũ, chỉ giữ lại view
+        sessionStorage.removeItem('gin_quiz_session');
 
         generate(val);
         startScreen.style.display = "none";
@@ -96,7 +200,8 @@ document.addEventListener("DOMContentLoaded", () => {
         inputPopup.classList.add("hidden");
         appLayout.style.display = "flex";
 
-        saveProgress(); // <--- MỚI: Lưu trạng thái mới
+        // Lưu ngay trạng thái "đang làm bài"
+        saveProgress();
     });
 
     backBtn.addEventListener("click", () => {
@@ -104,6 +209,8 @@ document.addEventListener("DOMContentLoaded", () => {
             appLayout.style.display = "none";
             startScreen.style.display = "flex";
             questionsBox.innerHTML = "";
+            sessionStorage.removeItem('gin_quiz_session'); // Xóa session
+            saveProgress(); // Lưu lại trạng thái mới (đang ở Start Screen)
         }
     });
 
@@ -123,7 +230,12 @@ document.addEventListener("DOMContentLoaded", () => {
             ["A", "B", "C", "D", "E", "F"].forEach(letter => {
                 let opt = document.createElement("label");
                 opt.className = "opt";
-                opt.innerHTML = `<input type='checkbox' value='${letter}' onchange='window.handleAnswerCheck(${i}, this)'> ${letter}`;
+                opt.innerHTML = `<input type='checkbox' value='${letter}'> ${letter}`;
+                // Gắn sự kiện click thủ công ở đây thay vì onchange trong HTML string
+                let input = opt.querySelector("input");
+                input.addEventListener("change", function () {
+                    handleAnswerCheck(i, this);
+                });
                 document.getElementById("q" + i).appendChild(opt);
             });
         }
@@ -151,14 +263,19 @@ document.addEventListener("DOMContentLoaded", () => {
         if (nextPageBtn) nextPageBtn.disabled = end >= totalQuestions;
     };
 
-    function isAnswered(idx) { return document.querySelectorAll(`#q${idx} input:checked`).length > 0; }
-    window.handleAnswerCheck = function (idx, cb) {
+    function isAnswered(idx) {
+        return document.querySelectorAll(`#q${idx} input:checked`).length > 0;
+    }
+
+    function handleAnswerCheck(idx, cb) {
         cb.parentElement.classList.toggle("selected", cb.checked);
         const navItem = document.getElementById(`nav-item-${idx}`);
         if (navItem) isAnswered(idx) ? navItem.classList.add("answered") : navItem.classList.remove("answered");
 
-        saveProgress(); // <--- MỚI: Gọi hàm lưu
+        // Lưu tiến độ mỗi khi tích
+        saveProgress();
     };
+
     function scrollToQuestion(idx) {
         const el = document.getElementById(`q-container-${idx}`);
         if (el) {
@@ -169,17 +286,24 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
+    // Các nút chức năng khác
     manualCreateBtn.addEventListener("click", () => {
         const val = Number(nativeNum.value);
-        if (val && val > 0 && val <= 10000) generate(val);
+        if (val && val > 0 && val <= 10000) {
+            generate(val);
+            saveProgress();
+        }
     });
+
     prevPageBtn.addEventListener("click", () => { if (currentPage > 1) { currentPage--; renderSidebar(); } });
     nextPageBtn.addEventListener("click", () => {
         const maxPage = Math.ceil(totalQuestions / itemsPerPage);
         if (currentPage < maxPage) { currentPage++; renderSidebar(); }
     });
+
     btnSearch.addEventListener("click", handleSearch);
     sidebarSearch.addEventListener("keypress", (e) => { if (e.key === "Enter") handleSearch(); });
+
     function handleSearch() {
         const val = Number(sidebarSearch.value);
         if (!val || val < 1 || val > totalQuestions) { alert("Câu không tồn tại!"); return; }
@@ -188,12 +312,12 @@ document.addEventListener("DOMContentLoaded", () => {
         setTimeout(() => scrollToQuestion(val), 100);
     }
 
-    // Login
+    // Login & Popup
     loginBtn.addEventListener("click", () => loginPopup.classList.add("show"));
     closeLogin.addEventListener("click", () => loginPopup.classList.remove("show"));
     loginPopup.addEventListener("click", (e) => { if (e.target === loginPopup) loginPopup.classList.remove("show"); });
 
-    // Grading
+    // Grading (Chấm điểm)
     exportBtn.addEventListener("click", () => { showGradingPopup(); });
 
     function showGradingPopup() {
@@ -223,6 +347,7 @@ document.addEventListener("DOMContentLoaded", () => {
             </div>`;
         bg.innerHTML = htmlContent;
         document.body.appendChild(bg);
+
         const listDiv = document.getElementById("answerList");
         let wrongCount = 0;
         for (let i = 1; i <= totalQuestions; i++) {
@@ -232,6 +357,7 @@ document.addEventListener("DOMContentLoaded", () => {
             let rowClass = "";
             let lockedAttr = "";
             if (isUnanswered) { rowClass = "wrong locked"; lockedAttr = "disabled"; wrongCount++; }
+
             let rowHtml = `
                 <div class="answer-row ${rowClass}" id="row-${i}">
                     <span style="font-size:18px; font-weight:500;">${i}. ${userAns || 'Chưa làm'}</span>
@@ -243,6 +369,8 @@ document.addEventListener("DOMContentLoaded", () => {
             listDiv.insertAdjacentHTML('beforeend', rowHtml);
         }
         updateTotalScore();
+
+        // Logic nút lọc câu sai
         document.getElementById("filterWrongBtn").addEventListener("click", function () {
             this.classList.toggle("active");
             const isFiltering = this.classList.contains("active");
@@ -275,15 +403,27 @@ document.addEventListener("DOMContentLoaded", () => {
         let correct = 0;
         let wrong = 0;
         rows.forEach(r => { if (r.classList.contains("correct")) correct++; if (r.classList.contains("wrong")) wrong++; });
+
         document.getElementById("cntTrue").textContent = correct;
         document.getElementById("cntFalse").textContent = wrong;
+
         let score = (totalQuestions > 0) ? (correct / totalQuestions) * 100 : 0;
         let finalScore = Math.round(score * 10) / 10;
+
         document.getElementById("scoreDisplay").textContent = `${finalScore}/100`;
         const statusBadge = document.getElementById("passStatus");
         const quoteBox = document.getElementById("quoteDisplay");
-        if (finalScore >= 50) { statusBadge.textContent = "PASS"; statusBadge.className = "score-status status-pass"; document.getElementById("scoreDisplay").style.color = "#155724"; }
-        else { statusBadge.textContent = "NOT PASS"; statusBadge.className = "score-status status-fail"; document.getElementById("scoreDisplay").style.color = "#721c24"; }
+
+        if (finalScore >= 50) {
+            statusBadge.textContent = "PASS";
+            statusBadge.className = "score-status status-pass";
+            document.getElementById("scoreDisplay").style.color = "#155724";
+        } else {
+            statusBadge.textContent = "NOT PASS";
+            statusBadge.className = "score-status status-fail";
+            document.getElementById("scoreDisplay").style.color = "#721c24";
+        }
+
         let quote = "";
         if (finalScore === 100) quote = "Xuất sắc! Bạn là thiên tài!";
         else if (finalScore >= 80) quote = "Tuyệt vời! Giữ vững phong độ nhé!";
@@ -291,61 +431,7 @@ document.addEventListener("DOMContentLoaded", () => {
         else quote = "Kết quả chưa tốt, hãy ôn lại kiến thức ngay!";
         quoteBox.textContent = `"${quote}"`;
     }
-    // === CODE MỚI: LƯU VÀ KHÔI PHỤC TIẾN ĐỘ ===
-    function saveProgress() {
-        let currentView = 'home';
-        if (!document.getElementById("view-empty-quiz").classList.contains("hidden")) currentView = 'empty';
 
-        let answers = {};
-        if (currentView === 'empty') {
-            document.querySelectorAll('.opt input:checked').forEach(box => {
-                let qId = box.parentElement.parentElement.id; // Lấy ID câu hỏi (vd: q1)
-                if (!answers[qId]) answers[qId] = [];
-                answers[qId].push(box.value);
-            });
-        }
-
-        localStorage.setItem('gin_quiz_save', JSON.stringify({
-            view: currentView,
-            total: totalQuestions,
-            ans: answers
-        }));
-    }
-
-    function loadProgress() {
-        const saved = localStorage.getItem('gin_quiz_save');
-        if (!saved) return;
-
-        try {
-            const data = JSON.parse(saved);
-            if (data.view === 'empty' && data.total > 0) {
-                switchView('empty');
-                totalQuestions = data.total;
-                if (document.getElementById("num")) document.getElementById("num").value = totalQuestions;
-
-                generate(totalQuestions); // Tạo lại giao diện câu hỏi
-
-                // Khôi phục các đáp án đã chọn
-                for (const [qId, values] of Object.entries(data.ans)) {
-                    let idx = qId.replace('q', ''); // Lấy số thứ tự câu
-                    values.forEach(val => {
-                        let input = document.querySelector(`#${qId} input[value="${val}"]`);
-                        if (input) {
-                            input.checked = true;
-                            // Cập nhật màu sắc giao diện
-                            input.parentElement.classList.add("selected");
-                            let navItem = document.getElementById(`nav-item-${idx}`);
-                            if (navItem) navItem.classList.add("answered");
-                        }
-                    });
-                }
-
-                startScreen.style.display = "none";
-                appLayout.style.display = "flex";
-            }
-        } catch (e) { console.log("Lỗi load save:", e); }
-    }
-
-    // Tự động chạy khi tải trang
+    // === 5. CHẠY KHI LOAD TRANG ===
     loadProgress();
 });
